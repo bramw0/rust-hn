@@ -879,6 +879,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "psl"
+version = "2.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d8298b5be6a771ca6bdbac659bdcbddda4086751e5c7c7384c63b2c783c37615"
+dependencies = [
+ "psl-types",
+]
+
+[[package]]
+name = "psl-types"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6965c475bd5e246212552c0fe586c073fc2b23bbd946e17e31a117ba799a68f5"
+
+[[package]]
 name = "quote"
 version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1057,6 +1072,7 @@ dependencies = [
  "criterion",
  "crossterm 0.19.0",
  "lazy_static",
+ "psl",
  "reqwest",
  "serde",
  "serde_json",

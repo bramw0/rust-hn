@@ -4,6 +4,8 @@ use api::Post;
 use crossterm::{
     event, event::Event as CEvent, terminal::disable_raw_mode, terminal::enable_raw_mode,
 };
+use psl::{List as PslList, Psl};
+use std::str;
 use std::{sync::mpsc, thread, time::Duration, time::Instant};
 
 use tui::{
@@ -60,21 +62,70 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let receiver = setup_input();
 
-    let top_stories: Vec<u32> = client.get_top_stories()?.into_iter().take(25).collect();
+    let top_stories: Vec<u32> = client.get_top_stories("orderBy=\"$key\"&limitToFirst=25")?;
 
     let items = {
         let mut vec = Vec::new();
         for id in top_stories {
-            vec.push(client.get_item_by_id(id)?)
+            vec.push(client.get_item_by_id(id, "")?)
         }
 
         vec.iter()
             .map(|post| match post {
-                Post::Comment(comment) => ListItem::new(Span::raw(format!("{:?}", comment))),
-                Post::Job(job) => ListItem::new(Span::raw(format!("{:?}", job))),
-                Post::Poll(poll) => ListItem::new(Span::raw(format!("{:?}", poll))),
-                Post::PollOpt(poll_opt) => ListItem::new(Span::raw(format!("{:?}", poll_opt))),
-                Post::Story(story) => ListItem::new(Span::raw(format!("{:?}", story))),
+                Post::Comment(comment) => {
+                    ListItem::new(Spans::from(vec![Span::raw(format!("{:?}", comment))]))
+                }
+                Post::Job(job) => {
+                    let url: String = job.url.clone().split('/').take(1).collect::<String>();
+                    ListItem::new(Spans::from(vec![
+                        Span::styled(job.title.clone(), Style::default()),
+                        Span::styled(
+                            format!(
+                                " ({})",
+                                /* str::from_utf8(
+                                    &PslList
+                                        .domain(job.url.clone().as_bytes())
+                                        .unwrap()
+                                        .as_bytes()
+                                )
+                                .unwrap() */
+                                url
+                            ),
+                            Style::default().fg(Color::Gray),
+                        ),
+                    ]))
+                }
+                Post::Poll(poll) => ListItem::new(Spans::from(vec![Span::raw(poll.title.clone())])),
+                Post::PollOpt(poll_opt) => {
+                    ListItem::new(Spans::from(vec![Span::raw(format!("{:?}", poll_opt))]))
+                }
+                Post::Story(story) => {
+                    let url: String = story
+                        .url
+                        .clone()
+                        .split("https://")
+                        .collect::<String>()
+                        .split('/')
+                        .take(1)
+                        .collect::<String>();
+                    ListItem::new(Spans::from(vec![
+                        Span::styled(story.title.clone(), Style::default()),
+                        Span::styled(
+                            format!(
+                                " ({})",
+                                /* str::from_utf8(
+                                    &PslList
+                                        .domain(story.url.clone().as_bytes())
+                                        .unwrap()
+                                        .as_bytes()
+                                )
+                                .unwrap() */
+                                url
+                            ),
+                            Style::default().fg(Color::Gray),
+                        ),
+                    ]))
+                }
             })
             .collect()
     };
