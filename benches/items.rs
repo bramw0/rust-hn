@@ -10,16 +10,13 @@ fn get_items() {
     // let a = client.get_item_by_id(26446070).unwrap();
 
     let top_stories: Vec<u32> = client
-        .get_top_stories()
-        .unwrap()
-        .into_iter()
-        .take(25)
-        .collect();
+        .get_top_stories("orderBy=\"$key\"&limitToFirst=25")
+        .unwrap();
 
     let items: Vec<ListItem> = {
         let mut vec = Vec::new();
         for id in top_stories {
-            vec.push(client.get_item_by_id(id).unwrap())
+            vec.push(client.get_item_by_id(id, "").unwrap())
         }
 
         vec.iter()
