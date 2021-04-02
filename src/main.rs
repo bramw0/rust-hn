@@ -1,3 +1,4 @@
+mod config;
 mod items;
 mod ui;
 
@@ -17,6 +18,7 @@ use regex::Regex;
 use std::str;
 use std::{sync::mpsc, thread, time::Duration, time::Instant};
 
+use config::Config;
 use items::{NewItems, TopItems};
 use tui::{
     backend::CrosstermBackend,
@@ -141,6 +143,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client: api::Client = api::Client::new(api::BASE_URL.to_string(), ureq::Agent::new());
     let mut top_items: TopItems = TopItems::new(client.clone());
     let mut new_items: NewItems = NewItems::new(client.clone());
+    let mut config = Config::new()?;
 
     let stdout = std::io::stdout();
     let backend = CrosstermBackend::new(stdout);
@@ -220,6 +223,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Event::Input(event) => match event.code {
                 event::KeyCode::Char('q') | event::KeyCode::Esc => {
                     disable_raw_mode()?;
+                    terminal.clear()?;
                     terminal.show_cursor()?;
                     break;
                 }
@@ -239,20 +243,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     if let Some(index) = stateful_list.state.selected() {
                         let items = match active_menu_item {
                             MenuItem::Top => {
-                                let mut top_items = &mut top_items;
+                                let top_items = &mut top_items;
                                 top_items.get_vec()?
                             }
                             MenuItem::New => {
-                                let mut new_items = &mut new_items;
+                                let new_items = &mut new_items;
                                 new_items.get_vec()?
                             }
                         };
 
                         if let Some(item) = items.get(index) {
                             match item {
-                                (_, Post::Comment(comment)) => {
-                                    eprintln!("{:?}", comment)
-                                }
+                                (_, Post::Comment(comment)) => eprintln!("{:?}", comment),
                                 (_, Post::Job(job)) => match webbrowser::open(job.url.as_str()) {
                                     Ok(_) => {
                                         terminal.clear().expect("Failed to clear the terminal");
@@ -261,12 +263,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         eprintln!("{:?}", error);
                                     }
                                 },
-                                (_, Post::Poll(poll)) => {
-                                    eprintln!("{:?}", poll)
-                                }
-                                (_, Post::PollOpt(poll_opt)) => {
-                                    eprintln!("{:?}", poll_opt)
-                                }
+                                (_, Post::Poll(poll)) => eprintln!("{:?}", poll),
+                                (_, Post::PollOpt(poll_opt)) => eprintln!("{:?}", poll_opt),
                                 (_, Post::Story(story)) => {
                                     match webbrowser::open(story.url.as_str()) {
                                         Ok(_) => {
@@ -281,7 +279,54 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     }
                 }
-                _ => {}
+                _ => {
+                    if event.code == config.view_comments {
+                        if let Some(index) = stateful_list.state.selected() {
+                            let items = match active_menu_item {
+                                MenuItem::Top => {
+                                    let top_items = &mut top_items;
+                                    top_items.get_vec()?
+                                }
+                                MenuItem::New => {
+                                    let new_items = &mut new_items;
+                                    new_items.get_vec()?
+                                }
+                            };
+
+                            if let Some(item) = items.get(index) {
+                                match item {
+                                    (_, Post::Comment(comment)) => eprintln!("{:?}", comment),
+                                    (_, Post::Job(job)) => match webbrowser::open(&format!(
+                                        "https://news.ycombinator.com/item?id={}",
+                                        job.id
+                                    )) {
+                                        Ok(_) => {
+                                            terminal.clear().expect("Failed to clear the terminal");
+                                        }
+                                        Err(error) => {
+                                            eprintln!("{:?}", error);
+                                        }
+                                    },
+                                    (_, Post::Poll(poll)) => eprintln!("{:?}", poll),
+                                    (_, Post::PollOpt(poll_opt)) => eprintln!("{:?}", poll_opt),
+                                    (_, Post::Story(story)) => {
+                                        match webbrowser::open(&format!(
+                                            "https://news.ycombinator.com/item?id={}",
+                                            story.id
+                                        )) {
+                                            Ok(_) => terminal
+                                                .clear()
+                                                .expect("Failed to clear the terminal"),
+                                            Err(error) => {
+                                                eprintln!("{:?}", error);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             },
             Event::Tick => {}
         }
