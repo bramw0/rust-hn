@@ -14,7 +14,10 @@ serde = { version = "1.0.124", default-features = false, features = ["derive"] }
 serde_json = "1.0"
 time = { version = "0.2.25", features = ["serde"] }
 lazy_static = "1.4.0"
-psl = "2.0.3"
+regex = "1.4.5"
+webbrowser = "0.5.5"
+directories = "3.0.1"
+tini = "1.0.0"
 
 [dev-dependencies]
 criterion = { version = "0.3.4", features = ["async_tokio"] }
@@ -30,5 +33,5 @@ name = "api"
 path = "src/api.rs"
 
 [[bin]]
-name = "rust-hn"
+name = "hntui"
 path = "src/main.rs"

@@ -148,8 +148,10 @@ impl Default for User {
     }
 }
 
+#[derive(Clone)]
 pub struct Client {
     pub agent: ureq::Agent,
+    pub url: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -165,19 +167,17 @@ pub struct Updates {
 } */
 
 #[allow(dead_code)]
-const BASE_URL: &str = "https://hacker-news.firebaseio.com/v0";
+pub const BASE_URL: &str = "https://hacker-news.firebaseio.com/v0";
 
 impl Default for Client {
     fn default() -> Self {
-        Self::new()
+        Self::new(BASE_URL.to_string(), ureq::Agent::new())
     }
 }
 
 impl Client {
-    pub fn new() -> Self {
-        Self {
-            agent: ureq::Agent::new(),
-        }
+    pub fn new(url: String, agent: ureq::Agent) -> Self {
+        Self { agent, url }
     }
 
     pub fn perform_request(&self, url: &str) -> Result<ureq::Response, Box<dyn std::error::Error>> {
@@ -190,7 +190,7 @@ impl Client {
         options: &str,
     ) -> Result<Post, Box<dyn std::error::Error>> {
         Ok(self
-            .perform_request(&format!("{}/item/{}.json?{}", BASE_URL, id, options))?
+            .perform_request(&format!("{}/item/{}.json?{}", self.url, id, options))?
             .into_json::<Post>()?)
     }
 
@@ -200,49 +200,49 @@ impl Client {
         options: &str,
     ) -> Result<User, Box<dyn std::error::Error>> {
         Ok(self
-            .perform_request(&format!("{}/user/{}.json?{}", BASE_URL, id, options))?
+            .perform_request(&format!("{}/user/{}.json?{}", self.url, id, options))?
             .into_json::<User>()?)
     }
 
     pub fn get_max_item_id(&self, options: &str) -> Result<u32, Box<dyn std::error::Error>> {
         Ok(self
-            .perform_request(&format!("{}/maxitem.json?{}", BASE_URL, options))?
+            .perform_request(&format!("{}/maxitem.json?{}", self.url, options))?
             .into_json::<u32>()?)
     }
 
     pub fn get_top_stories(&self, options: &str) -> Result<Vec<u32>, Box<dyn std::error::Error>> {
         Ok(self
-            .perform_request(&format!("{}/topstories.json?{}", BASE_URL, options))?
+            .perform_request(&format!("{}/topstories.json?{}", self.url, options))?
             .into_json::<Vec<u32>>()?)
     }
 
     pub fn get_new_stories(&self, options: &str) -> Result<Vec<u32>, Box<dyn std::error::Error>> {
         Ok(self
-            .perform_request(&format!("{}/newstories.json?{}", BASE_URL, options))?
+            .perform_request(&format!("{}/newstories.json?{}", self.url, options))?
             .into_json::<Vec<u32>>()?)
     }
 
     pub fn get_ask_stories(&self, options: &str) -> Result<Vec<u32>, Box<dyn std::error::Error>> {
         Ok(self
-            .perform_request(&format!("{}/askstories.json?{}", BASE_URL, options))?
+            .perform_request(&format!("{}/askstories.json?{}", self.url, options))?
             .into_json::<Vec<u32>>()?)
     }
 
     pub fn get_show_stories(&self, options: &str) -> Result<Vec<u32>, Box<dyn std::error::Error>> {
         Ok(self
-            .perform_request(&format!("{}/showstories.json?{}", BASE_URL, options))?
+            .perform_request(&format!("{}/showstories.json?{}", self.url, options))?
             .into_json::<Vec<u32>>()?)
     }
 
     pub fn get_job_stories(&self, options: &str) -> Result<Vec<u32>, Box<dyn std::error::Error>> {
         Ok(self
-            .perform_request(&format!("{}/jobstories.json?{}", BASE_URL, options))?
+            .perform_request(&format!("{}/jobstories.json?{}", self.url, options))?
             .into_json::<Vec<u32>>()?)
     }
 
     pub fn get_updates(&self, options: &str) -> Result<Updates, Box<dyn std::error::Error>> {
         Ok(self
-            .perform_request(&format!("{}/updates.json?{}", BASE_URL, options))?
+            .perform_request(&format!("{}/updates.json?{}", self.url, options))?
             .into_json::<Updates>()?)
     }
 }

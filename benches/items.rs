@@ -4,7 +4,7 @@ use tokio::runtime::Runtime;
 use tui::{text::Span, widgets::ListItem};
 
 fn get_items() {
-    let client = api::Client::new();
+    let client = api::Client::new(api::BASE_URL.to_string(), ureq::Agent::new());
 
     // 1.3753s
     // let a = client.get_item_by_id(26446070).unwrap();

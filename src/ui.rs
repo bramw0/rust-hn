@@ -50,3 +50,31 @@ where
         self.state.select(None);
     }
 }
+
+#[derive(Copy, Clone, Debug)]
+pub enum MenuItem {
+    Top,
+    New
+}
+
+impl From<MenuItem> for usize {
+    fn from(input: MenuItem) -> usize {
+        match input {
+            MenuItem::Top => 0,
+            MenuItem::New => 1,
+        }
+    }
+}
+
+impl MenuItem {
+    pub fn scroll(&mut self) {
+        match *self {
+            MenuItem::Top => {
+                *self = MenuItem::New;
+            }
+            MenuItem::New => {
+                *self = MenuItem::Top;
+            }
+        }
+    }
+}
