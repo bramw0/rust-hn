@@ -76,16 +76,12 @@ fn construct_items(
     stories: Vec<u32>,
     client: api::Client,
 ) -> Result<Vec<(usize, Post)>, Box<dyn std::error::Error>> {
-    let items: Vec<(usize, Post)> = {
-        let mut vec = Vec::new();
-        for (pos, id) in stories.iter().enumerate() {
-            let it = std::time::Instant::now();
-            vec.push((pos + 1, client.get_item_by_id(*id, "")?));
-            eprintln!("{}:\t{:?}", pos, it.elapsed())
-        }
+    let mut vec = Vec::new();
+    for (pos, id) in stories.iter().enumerate() {
+        let it = std::time::Instant::now();
+        vec.push((pos + 1, client.get_item_by_id(*id, "")?));
+        eprintln!("{}:\t{:?}", pos, it.elapsed())
+    }
 
-        vec
-    };
-
-    Ok(items)
+    Ok(vec)
 }
