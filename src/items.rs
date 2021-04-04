@@ -12,20 +12,27 @@ impl TopItems {
         TopItems {
             vec: Vec::new(),
             list: Vec::new(),
-            client
+            client,
         }
     }
 
-    pub fn get_vec(&mut self) -> Result<Vec<(usize, Post)>, Box<dyn std::error::Error>> {
+    pub fn get_vec(
+        &mut self,
+        item_length: u8,
+    ) -> Result<Vec<(usize, Post)>, Box<dyn std::error::Error>> {
         if self.vec.is_empty() {
-            self.vec = Self::get_items(self.client.clone())?;
+            self.vec = Self::get_items(self.client.clone(), item_length)?;
         }
 
         Ok(self.vec.clone())
     }
 
-    fn get_items(client: api::Client) -> Result<Vec<(usize, Post)>, Box<dyn std::error::Error>> {
-        let stories = client.get_top_stories("orderBy=\"$key\"&limitToFirst=25")?;
+    fn get_items(
+        client: api::Client,
+        item_length: u8,
+    ) -> Result<Vec<(usize, Post)>, Box<dyn std::error::Error>> {
+        let stories =
+            client.get_top_stories(&format!("orderBy=\"$key\"&limitToFirst={}", item_length))?;
 
         let items = construct_items(stories, client)?;
 
@@ -44,7 +51,7 @@ impl NewItems {
         NewItems {
             vec: Vec::new(),
             list: Vec::new(),
-            client
+            client,
         }
     }
 
@@ -56,7 +63,6 @@ impl NewItems {
         Ok(self.vec.clone())
     }
 
-
     fn get_items(client: api::Client) -> Result<Vec<(usize, Post)>, Box<dyn std::error::Error>> {
         let stories = client.get_new_stories("orderBy=\"$key\"&limitToFirst=25")?;
 
@@ -66,7 +72,10 @@ impl NewItems {
     }
 }
 
-fn construct_items(stories: Vec<u32>, client: api::Client) -> Result<Vec<(usize, Post)>, Box<dyn std::error::Error>> {
+fn construct_items(
+    stories: Vec<u32>,
+    client: api::Client,
+) -> Result<Vec<(usize, Post)>, Box<dyn std::error::Error>> {
     let items: Vec<(usize, Post)> = {
         let mut vec = Vec::new();
         for (pos, id) in stories.iter().enumerate() {

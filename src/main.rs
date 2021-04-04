@@ -3,10 +3,8 @@ mod items;
 mod ui;
 
 /*
- * Config library -> specify max items in config, specify default view (Top vs New) in config
- * Display note to user when items are being collected (requested) for the New view or Top view
- * Add C keybinding to open comments in browser
- * Customizable keybindings?
+ * // TODO: Config library -> specify max items in config, specify default view (Top vs New) in config
+ * // TODO: Display note to user when items are being collected (requested) for the New view or Top view
  */
 
 use api::Post;
@@ -30,7 +28,6 @@ use tui::{
     widgets::{Block, Borders, List, ListItem, Tabs},
 };
 use ui::{MenuItem, StatefulList};
-use webbrowser;
 
 enum Event<I> {
     Input(I),
@@ -142,8 +139,8 @@ fn generate_list_items(items: Vec<(usize, Post)>) -> Vec<ListItem<'static>> {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client: api::Client = api::Client::new(api::BASE_URL.to_string(), ureq::Agent::new());
     let mut top_items: TopItems = TopItems::new(client.clone());
-    let mut new_items: NewItems = NewItems::new(client.clone());
-    let mut config = Config::new()?;
+    let mut new_items: NewItems = NewItems::new(client);
+    let config = Config::new()?;
 
     let stdout = std::io::stdout();
     let backend = CrosstermBackend::new(stdout);
@@ -154,7 +151,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let receiver = setup_input();
 
-    top_items.list = generate_list_items(top_items.get_vec()?);
+    top_items.list = generate_list_items(top_items.get_vec(config.max_items)?);
     let mut stateful_list = StatefulList::new(top_items.list.clone());
     stateful_list.next();
 
@@ -165,8 +162,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         terminal.draw(|frame| match active_menu_item {
             MenuItem::Top => {
                 if stateful_list.items != top_items.list {
-                    stateful_list.items =
-                        generate_list_items(top_items.get_vec().unwrap_or_else(|_| vec![]));
+                    stateful_list.items = generate_list_items(
+                        top_items
+                            .get_vec(config.max_items)
+                            .unwrap_or_else(|_| vec![]),
+                    );
                 }
 
                 let chunks = Layout::default()
@@ -220,31 +220,63 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         })?;
 
         match receiver.recv()? {
-            Event::Input(event) => match event.code {
-                event::KeyCode::Char('q') | event::KeyCode::Esc => {
-                    disable_raw_mode()?;
-                    terminal.clear()?;
-                    terminal.show_cursor()?;
-                    break;
-                }
-                event::KeyCode::Char('j') | event::KeyCode::Down => {
-                    stateful_list.next();
-                }
-                event::KeyCode::Char('k') | event::KeyCode::Up => {
-                    stateful_list.previous();
-                }
-                event::KeyCode::Char('h')
-                | event::KeyCode::Left
-                | event::KeyCode::Char('l')
-                | event::KeyCode::Right => {
-                    active_menu_item.scroll();
-                }
-                event::KeyCode::Enter => {
+            Event::Input(event) => {
+                if config.view_comments.contains(&event.code) {
                     if let Some(index) = stateful_list.state.selected() {
                         let items = match active_menu_item {
                             MenuItem::Top => {
                                 let top_items = &mut top_items;
-                                top_items.get_vec()?
+                                top_items.get_vec(config.max_items)?
+                            }
+                            MenuItem::New => {
+                                let new_items = &mut new_items;
+                                new_items.get_vec()?
+                            }
+                        };
+
+                        if let Some(item) = items.get(index) {
+                            match item {
+                                (_, Post::Comment(comment)) => eprintln!("{:?}", comment),
+                                (_, Post::Job(job)) => match webbrowser::open(&format!(
+                                    "https://news.ycombinator.com/item?id={}",
+                                    job.id
+                                )) {
+                                    Ok(_) => {
+                                        terminal.clear().expect("Failed to clear the terminal");
+                                    }
+                                    Err(error) => {
+                                        eprintln!("{:?}", error);
+                                    }
+                                },
+                                (_, Post::Poll(poll)) => eprintln!("{:?}", poll),
+                                (_, Post::PollOpt(poll_opt)) => eprintln!("{:?}", poll_opt),
+                                (_, Post::Story(story)) => {
+                                    match webbrowser::open(&format!(
+                                        "https://news.ycombinator.com/item?id={}",
+                                        story.id
+                                    )) {
+                                        Ok(_) => {
+                                            terminal.clear().expect("Failed to clear the terminal")
+                                        }
+                                        Err(error) => {
+                                            eprintln!("{:?}", error);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else if config.quit.contains(&event.code) || event.code == event::KeyCode::Esc {
+                    disable_raw_mode()?;
+                    terminal.clear()?;
+                    terminal.show_cursor()?;
+                    break;
+                } else if config.open_article.contains(&event.code) {
+                    if let Some(index) = stateful_list.state.selected() {
+                        let items = match active_menu_item {
+                            MenuItem::Top => {
+                                let top_items = &mut top_items;
+                                top_items.get_vec(config.max_items)?
                             }
                             MenuItem::New => {
                                 let new_items = &mut new_items;
@@ -278,56 +310,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             }
                         }
                     }
+                } else if config.left.contains(&event.code) || config.right.contains(&event.code) {
+                    active_menu_item.scroll();
+                } else if config.up.contains(&event.code) {
+                    stateful_list.previous();
+                } else if config.down.contains(&event.code) {
+                    stateful_list.next();
                 }
-                _ => {
-                    if event.code == config.view_comments {
-                        if let Some(index) = stateful_list.state.selected() {
-                            let items = match active_menu_item {
-                                MenuItem::Top => {
-                                    let top_items = &mut top_items;
-                                    top_items.get_vec()?
-                                }
-                                MenuItem::New => {
-                                    let new_items = &mut new_items;
-                                    new_items.get_vec()?
-                                }
-                            };
-
-                            if let Some(item) = items.get(index) {
-                                match item {
-                                    (_, Post::Comment(comment)) => eprintln!("{:?}", comment),
-                                    (_, Post::Job(job)) => match webbrowser::open(&format!(
-                                        "https://news.ycombinator.com/item?id={}",
-                                        job.id
-                                    )) {
-                                        Ok(_) => {
-                                            terminal.clear().expect("Failed to clear the terminal");
-                                        }
-                                        Err(error) => {
-                                            eprintln!("{:?}", error);
-                                        }
-                                    },
-                                    (_, Post::Poll(poll)) => eprintln!("{:?}", poll),
-                                    (_, Post::PollOpt(poll_opt)) => eprintln!("{:?}", poll_opt),
-                                    (_, Post::Story(story)) => {
-                                        match webbrowser::open(&format!(
-                                            "https://news.ycombinator.com/item?id={}",
-                                            story.id
-                                        )) {
-                                            Ok(_) => terminal
-                                                .clear()
-                                                .expect("Failed to clear the terminal"),
-                                            Err(error) => {
-                                                eprintln!("{:?}", error);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            },
+            }
             Event::Tick => {}
         }
     }

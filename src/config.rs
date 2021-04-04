@@ -1,21 +1,69 @@
-use crossterm::event;
+use crate::ui::MenuItem;
+use crossterm::event::KeyCode;
 use directories::ProjectDirs;
-use std::path::PathBuf;
+use std::{collections::HashSet, path::PathBuf};
 use tini::Ini;
 
 #[derive(Debug)]
 pub struct Config {
     ini: Ini,
     path: PathBuf,
-    pub view_comments: event::KeyCode,
+    pub view_comments: HashSet<KeyCode>,
+    pub quit: HashSet<KeyCode>,
+    pub down: HashSet<KeyCode>,
+    pub up: HashSet<KeyCode>,
+    pub left: HashSet<KeyCode>,
+    pub right: HashSet<KeyCode>,
+    pub open_article: HashSet<KeyCode>,
+    pub max_items: u8,
+    pub default_view: MenuItem,
 }
 
 impl std::default::Default for Config {
     fn default() -> Self {
+        let mut view_comments = HashSet::new();
+        view_comments.insert(KeyCode::Char('C'));
+
+        let mut quit = HashSet::new();
+        quit.insert(KeyCode::Char('q'));
+
+        let mut down = HashSet::new();
+        down.insert(KeyCode::Char('j'));
+        down.insert(KeyCode::Down);
+
+        let mut up = HashSet::new();
+        up.insert(KeyCode::Char('k'));
+        up.insert(KeyCode::Up);
+
+        let mut left = HashSet::new();
+        left.insert(KeyCode::Char('h'));
+
+        let mut right = HashSet::new();
+        right.insert(KeyCode::Char('l'));
+
+        let mut open_article = HashSet::new();
+        open_article.insert(KeyCode::Enter);
+
         Config {
-            ini: Ini::new().section("keybindings").item("view_comments", 'C'),
+            ini: Ini::new()
+                .section("keybindings")
+                .item_vec("view_comments", &["C"])
+                .item_vec("quit", &["q"])
+                .item_vec("down", &["j", "arrow_down"])
+                .item_vec("up", &["k", "arrow_up"])
+                .section("general")
+                .item("max_items", 25)
+                .item("default_view", "top"),
             path: Self::config_path(),
-            view_comments: event::KeyCode::Char('C'),
+            view_comments,
+            quit,
+            down,
+            up,
+            left,
+            right,
+            open_article,
+            max_items: 25,
+            default_view: MenuItem::Top,
         }
     }
 }
@@ -32,27 +80,64 @@ impl Config {
 
         if !config.path.exists() {
             config.write()?;
-        } else {
-            if let Err(err) = config.read() {
-                eprintln!("{:#?}, {:#?}", err, config.path);
-            }
+        } else if let Err(err) = config.read() {
+            eprintln!("{:#?}, {:#?}", err, config.path);
         }
-
-        println!("{:#?}", config);
 
         Ok(config)
     }
 
     pub fn read(&mut self) -> Result<(), tini::Error> {
         self.ini = Ini::from_file(&self.path)?;
+        self.default_view = match self.ini.get::<String>("general", "default_view") {
+            Some(value) => match value.to_lowercase().as_str() {
+                "top" => MenuItem::Top,
+                "new" => MenuItem::New,
+                _ => {
+                    eprintln!("{} is not a valid default_view value", value);
+                    MenuItem::Top
+                }
+            },
+            _ => MenuItem::Top,
+        };
+
         for (name, section_iter) in self.ini.iter() {
             match name.as_str() {
                 "keybindings" => {
                     for (key, value) in section_iter {
+                        let shortcuts: Vec<&str> = value.split(", ").collect();
                         match key.as_str() {
                             "view_comments" => {
-                                self.view_comments =
-                                    event::KeyCode::Char(value.chars().next().expect("Invalid key"))
+                                self.view_comments = Self::parse_shortcuts(shortcuts)
+                            }
+                            "quit" => self.quit = Self::parse_shortcuts(shortcuts),
+                            "down" => self.down = Self::parse_shortcuts(shortcuts),
+                            "up" => self.up = Self::parse_shortcuts(shortcuts),
+                            "open_article" => self.open_article = Self::parse_shortcuts(shortcuts),
+                            _ => {}
+                        }
+                    }
+                }
+                "general" => {
+                    for (key, value) in section_iter {
+                        match key.as_str() {
+                            "max_items" => {
+                                self.max_items = value.parse::<u8>().unwrap_or_else(|_| {
+                                    panic!("{} is not a valid max_items value", value)
+                                })
+                            }
+                            "default_view" => {
+                                self.default_view = match value.to_lowercase().as_str() {
+                                    "top" => MenuItem::Top,
+                                    "new" => MenuItem::New,
+                                    _ => {
+                                        eprintln!(
+                                            "{} is not a valid default_view value",
+                                            value.to_lowercase()
+                                        );
+                                        MenuItem::Top
+                                    }
+                                }
                             }
                             _ => {}
                         }
@@ -61,6 +146,7 @@ impl Config {
                 _ => {}
             }
         }
+
         Ok(())
     }
 
@@ -74,7 +160,25 @@ impl Config {
             .unwrap()
             .config_dir()
             .to_path_buf();
-        config_dir.push("config.yml");
+        config_dir.push("config.ini");
         config_dir
+    }
+
+    fn parse_shortcuts(shortcuts: Vec<&str>) -> HashSet<KeyCode> {
+        shortcuts
+            .iter()
+            .map(|shortcut| match *shortcut {
+                "arrow_down" => KeyCode::Down,
+                "arrow_up" => KeyCode::Up,
+                "arrow_left" => KeyCode::Left,
+                "arrow_right" => KeyCode::Right,
+                char => {
+                    if char.len() != 1 {
+                        panic!("{} is not a valid shortcut", char);
+                    }
+                    KeyCode::Char(char.chars().next().unwrap())
+                }
+            })
+            .collect()
     }
 }
