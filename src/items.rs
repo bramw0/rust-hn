@@ -1,4 +1,5 @@
 use api::Post;
+use futures::{stream, StreamExt};
 use tui::widgets::ListItem;
 
 pub struct TopItems {
@@ -16,25 +17,26 @@ impl TopItems {
         }
     }
 
-    pub fn get_vec(
+    pub async fn get_vec(
         &mut self,
         item_length: u8,
     ) -> Result<Vec<(usize, Post)>, Box<dyn std::error::Error>> {
         if self.vec.is_empty() {
-            self.vec = Self::get_items(self.client.clone(), item_length)?;
+            self.vec = Self::get_items(self.client.clone(), item_length).await?;
         }
 
         Ok(self.vec.clone())
     }
 
-    fn get_items(
+    async fn get_items(
         client: api::Client,
         item_length: u8,
     ) -> Result<Vec<(usize, Post)>, Box<dyn std::error::Error>> {
-        let stories =
-            client.get_top_stories(&format!("orderBy=\"$key\"&limitToFirst={}", item_length))?;
+        let stories = client
+            .get_top_stories(&format!("orderBy=\"$key\"&limitToFirst={}", item_length))
+            .await?;
 
-        let items = construct_items(stories, client)?;
+        let items = construct_items(stories, client).await?;
 
         Ok(items)
     }
@@ -55,33 +57,56 @@ impl NewItems {
         }
     }
 
-    pub fn get_vec(&mut self) -> Result<Vec<(usize, Post)>, Box<dyn std::error::Error>> {
+    pub async fn get_vec(&mut self) -> Result<Vec<(usize, Post)>, Box<dyn std::error::Error>> {
         if self.vec.is_empty() {
-            self.vec = Self::get_items(self.client.clone())?;
+            self.vec = Self::get_items(self.client.clone()).await?;
         }
 
         Ok(self.vec.clone())
     }
 
-    fn get_items(client: api::Client) -> Result<Vec<(usize, Post)>, Box<dyn std::error::Error>> {
-        let stories = client.get_new_stories("orderBy=\"$key\"&limitToFirst=25")?;
+    async fn get_items(
+        client: api::Client,
+    ) -> Result<Vec<(usize, Post)>, Box<dyn std::error::Error>> {
+        let stories = client
+            .get_new_stories("orderBy=\"$key\"&limitToFirst=25")
+            .await?;
 
-        let items = construct_items(stories, client)?;
+        let items = construct_items(stories, client).await?;
 
         Ok(items)
     }
 }
 
-fn construct_items(
+async fn construct_items(
     stories: Vec<u32>,
     client: api::Client,
 ) -> Result<Vec<(usize, Post)>, Box<dyn std::error::Error>> {
-    let mut vec = Vec::new();
-    for (pos, id) in stories.iter().enumerate() {
-        let it = std::time::Instant::now();
-        vec.push((pos + 1, client.get_item_by_id(*id, "")?));
-        eprintln!("{}:\t{:?}", pos, it.elapsed())
-    }
+    let mut items = Vec::new();
 
-    Ok(vec)
+    let requests = stream::iter(stories.clone())
+        .enumerate()
+        .map(|(pos, id)| {
+            let client = &client;
+            async move {
+                let post = client.get_item_by_id(id, "").await.unwrap();
+                (pos + 1, post)
+            }
+        })
+        .buffer_unordered(stories.len());
+
+    #[cfg(debug_assertions)]
+    let a = std::time::Instant::now();
+
+    requests
+        .fold(&mut items, |items, (pos, post)| async move {
+            items.push((pos, post));
+            items
+        })
+        .await;
+
+    #[cfg(debug_assertions)]
+    eprintln!("Total time: {:?}", a.elapsed());
+
+    Ok(items)
 }

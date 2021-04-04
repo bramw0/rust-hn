@@ -150,7 +150,7 @@ impl Default for User {
 
 #[derive(Clone)]
 pub struct Client {
-    pub agent: ureq::Agent,
+    pub client: reqwest::Client,
     pub url: String,
 }
 
@@ -171,87 +171,114 @@ pub const BASE_URL: &str = "https://hacker-news.firebaseio.com/v0";
 
 impl Default for Client {
     fn default() -> Self {
-        Self::new(BASE_URL.to_string(), ureq::Agent::new())
+        Self::new(BASE_URL.to_string(), reqwest::Client::new())
     }
 }
 
 impl Client {
-    pub fn new(url: String, agent: ureq::Agent) -> Self {
-        Self { agent, url }
+    pub fn new(url: String, client: reqwest::Client) -> Self {
+        Self { client, url }
     }
 
-    pub fn perform_request(&self, url: &str) -> Result<ureq::Response, Box<dyn std::error::Error>> {
-        Ok(self.agent.get(url).call()?)
+    pub async fn perform_request(
+        &self,
+        url: &str,
+    ) -> Result<reqwest::Response, Box<dyn std::error::Error>> {
+        Ok(self.client.get(url).send().await?)
     }
 
-    pub fn get_item_by_id(
+    pub async fn get_item_by_id(
         &self,
         id: u32,
         options: &str,
     ) -> Result<Post, Box<dyn std::error::Error>> {
         Ok(self
-            .perform_request(&format!("{}/item/{}.json?{}", self.url, id, options))?
-            .into_json::<Post>()?)
+            .perform_request(&format!("{}/item/{}.json?{}", self.url, id, options))
+            .await?
+            .json::<Post>()
+            .await?)
     }
 
-    pub fn get_user_by_id(
+    pub async fn get_user_by_id(
         &self,
         id: &str,
         options: &str,
     ) -> Result<User, Box<dyn std::error::Error>> {
         Ok(self
-            .perform_request(&format!("{}/user/{}.json?{}", self.url, id, options))?
-            .into_json::<User>()?)
+            .perform_request(&format!("{}/user/{}.json?{}", self.url, id, options))
+            .await?
+            .json::<User>()
+            .await?)
     }
 
-    pub fn get_max_item_id(&self, options: &str) -> Result<u32, Box<dyn std::error::Error>> {
+    pub async fn get_max_item_id(&self, options: &str) -> Result<u32, Box<dyn std::error::Error>> {
         Ok(self
-            .perform_request(&format!("{}/maxitem.json?{}", self.url, options))?
-            .into_json::<u32>()?)
+            .perform_request(&format!("{}/maxitem.json?{}", self.url, options))
+            .await?
+            .json::<u32>()
+            .await?)
     }
 
-    pub fn get_top_stories(&self, options: &str) -> Result<Vec<u32>, Box<dyn std::error::Error>> {
+    pub async fn get_top_stories(
+        &self,
+        options: &str,
+    ) -> Result<Vec<u32>, Box<dyn std::error::Error>> {
         Ok(self
-            .perform_request(&format!("{}/topstories.json?{}", self.url, options))?
-            .into_json::<Vec<u32>>()?)
+            .perform_request(&format!("{}/topstories.json?{}", self.url, options))
+            .await?
+            .json::<Vec<u32>>()
+            .await?)
     }
 
-    pub fn get_new_stories(&self, options: &str) -> Result<Vec<u32>, Box<dyn std::error::Error>> {
+    pub async fn get_new_stories(
+        &self,
+        options: &str,
+    ) -> Result<Vec<u32>, Box<dyn std::error::Error>> {
         Ok(self
-            .perform_request(&format!("{}/newstories.json?{}", self.url, options))?
-            .into_json::<Vec<u32>>()?)
+            .perform_request(&format!("{}/newstories.json?{}", self.url, options))
+            .await?
+            .json::<Vec<u32>>()
+            .await?)
     }
 
-    pub fn get_ask_stories(&self, options: &str) -> Result<Vec<u32>, Box<dyn std::error::Error>> {
+    pub async fn get_ask_stories(
+        &self,
+        options: &str,
+    ) -> Result<Vec<u32>, Box<dyn std::error::Error>> {
         Ok(self
-            .perform_request(&format!("{}/askstories.json?{}", self.url, options))?
-            .into_json::<Vec<u32>>()?)
+            .perform_request(&format!("{}/askstories.json?{}", self.url, options))
+            .await?
+            .json::<Vec<u32>>()
+            .await?)
     }
 
-    pub fn get_show_stories(&self, options: &str) -> Result<Vec<u32>, Box<dyn std::error::Error>> {
+    pub async fn get_show_stories(
+        &self,
+        options: &str,
+    ) -> Result<Vec<u32>, Box<dyn std::error::Error>> {
         Ok(self
-            .perform_request(&format!("{}/showstories.json?{}", self.url, options))?
-            .into_json::<Vec<u32>>()?)
+            .perform_request(&format!("{}/showstories.json?{}", self.url, options))
+            .await?
+            .json::<Vec<u32>>()
+            .await?)
     }
 
-    pub fn get_job_stories(&self, options: &str) -> Result<Vec<u32>, Box<dyn std::error::Error>> {
+    pub async fn get_job_stories(
+        &self,
+        options: &str,
+    ) -> Result<Vec<u32>, Box<dyn std::error::Error>> {
         Ok(self
-            .perform_request(&format!("{}/jobstories.json?{}", self.url, options))?
-            .into_json::<Vec<u32>>()?)
+            .perform_request(&format!("{}/jobstories.json?{}", self.url, options))
+            .await?
+            .json::<Vec<u32>>()
+            .await?)
     }
 
-    pub fn get_updates(&self, options: &str) -> Result<Updates, Box<dyn std::error::Error>> {
+    pub async fn get_updates(&self, options: &str) -> Result<Updates, Box<dyn std::error::Error>> {
         Ok(self
-            .perform_request(&format!("{}/updates.json?{}", self.url, options))?
-            .into_json::<Updates>()?)
+            .perform_request(&format!("{}/updates.json?{}", self.url, options))
+            .await?
+            .json::<Updates>()
+            .await?)
     }
 }
-
-/* pub fn from_id<'de, D>(deserializer: D) -> Result<User, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let id: String = serde::Deserialize::deserialize(deserializer).unwrap();
-
-    Ok(CLIENT.get_user_by_id(id.as_str()).unwrap())
-} */

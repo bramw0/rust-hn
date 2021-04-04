@@ -11,6 +11,7 @@ use api::Post;
 use crossterm::{
     event, event::Event as CEvent, terminal::disable_raw_mode, terminal::enable_raw_mode,
 };
+use futures::executor::block_on;
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::str;
@@ -136,8 +137,9 @@ fn generate_list_items(items: Vec<(usize, Post)>) -> Vec<ListItem<'static>> {
     list_items
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client: api::Client = api::Client::new(api::BASE_URL.to_string(), ureq::Agent::new());
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client: api::Client = api::Client::new(api::BASE_URL.to_string(), reqwest::Client::new());
     let mut top_items: TopItems = TopItems::new(client.clone());
     let mut new_items: NewItems = NewItems::new(client);
     let config = Config::new()?;
@@ -151,7 +153,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let receiver = setup_input();
 
-    top_items.list = generate_list_items(top_items.get_vec(config.max_items)?);
+    top_items.list = generate_list_items(top_items.get_vec(config.max_items).await?);
     let mut stateful_list = StatefulList::new(top_items.list.clone());
     stateful_list.next();
 
@@ -163,9 +165,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             MenuItem::Top => {
                 if stateful_list.items != top_items.list {
                     stateful_list.items = generate_list_items(
-                        top_items
-                            .get_vec(config.max_items)
-                            .unwrap_or_else(|_| vec![]),
+                        block_on(top_items.get_vec(config.max_items)).unwrap_or_else(|_| vec![]),
                     );
                 }
 
@@ -192,8 +192,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             MenuItem::New => {
                 if stateful_list.items != new_items.list {
-                    stateful_list.items =
-                        generate_list_items(new_items.get_vec().unwrap_or_else(|_| vec![]));
+                    stateful_list.items = generate_list_items(
+                        block_on(new_items.get_vec()).unwrap_or_else(|_| vec![]),
+                    );
                 }
 
                 let chunks = Layout::default()
@@ -226,11 +227,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let items = match active_menu_item {
                             MenuItem::Top => {
                                 let top_items = &mut top_items;
-                                top_items.get_vec(config.max_items)?
+                                block_on(top_items.get_vec(config.max_items))?
                             }
                             MenuItem::New => {
                                 let new_items = &mut new_items;
-                                new_items.get_vec()?
+                                block_on(new_items.get_vec())?
                             }
                         };
 
@@ -276,11 +277,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let items = match active_menu_item {
                             MenuItem::Top => {
                                 let top_items = &mut top_items;
-                                top_items.get_vec(config.max_items)?
+                                block_on(top_items.get_vec(config.max_items))?
                             }
                             MenuItem::New => {
                                 let new_items = &mut new_items;
-                                new_items.get_vec()?
+                                block_on(new_items.get_vec())?
                             }
                         };
 
