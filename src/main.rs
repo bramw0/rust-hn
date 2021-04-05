@@ -267,7 +267,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             }
                         }
                     }
-                } else if config.quit.contains(&event.code) || event.code == event::KeyCode::Esc {
+                } else if config.quit.contains(&event.code) {
                     disable_raw_mode()?;
                     terminal.clear()?;
                     terminal.show_cursor()?;

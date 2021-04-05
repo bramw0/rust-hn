@@ -26,6 +26,7 @@ impl std::default::Default for Config {
 
         let mut quit = HashSet::new();
         quit.insert(KeyCode::Char('q'));
+        quit.insert(KeyCode::Esc);
 
         let mut down = HashSet::new();
         down.insert(KeyCode::Char('j'));
@@ -37,9 +38,11 @@ impl std::default::Default for Config {
 
         let mut left = HashSet::new();
         left.insert(KeyCode::Char('h'));
+        left.insert(KeyCode::Left);
 
         let mut right = HashSet::new();
         right.insert(KeyCode::Char('l'));
+        right.insert(KeyCode::Right);
 
         let mut open_article = HashSet::new();
         open_article.insert(KeyCode::Enter);
@@ -48,9 +51,12 @@ impl std::default::Default for Config {
             ini: Ini::new()
                 .section("keybindings")
                 .item_vec("view_comments", &["C"])
-                .item_vec("quit", &["q"])
+                .item_vec("quit", &["q", "esc"])
                 .item_vec("down", &["j", "arrow_down"])
                 .item_vec("up", &["k", "arrow_up"])
+                .item_vec("left", &["h", "arrow_left"])
+                .item_vec("right", &["l", "arrow_right"])
+                .item_vec("open_article", &["enter"])
                 .section("general")
                 .item("max_items", 25)
                 .item("default_view", "top"),
@@ -113,6 +119,8 @@ impl Config {
                             "quit" => self.quit = Self::parse_shortcuts(shortcuts),
                             "down" => self.down = Self::parse_shortcuts(shortcuts),
                             "up" => self.up = Self::parse_shortcuts(shortcuts),
+                            "left" => self.left = Self::parse_shortcuts(shortcuts),
+                            "right" => self.right = Self::parse_shortcuts(shortcuts),
                             "open_article" => self.open_article = Self::parse_shortcuts(shortcuts),
                             _ => {}
                         }
@@ -168,12 +176,31 @@ impl Config {
         shortcuts
             .iter()
             .map(|shortcut| match *shortcut {
-                "arrow_down" => KeyCode::Down,
-                "arrow_up" => KeyCode::Up,
+                "backspace" => KeyCode::Backspace,
+                "enter" => KeyCode::Enter,
                 "arrow_left" => KeyCode::Left,
                 "arrow_right" => KeyCode::Right,
+                "arrow_up" => KeyCode::Up,
+                "arrow_down" => KeyCode::Down,
+                "home" => KeyCode::Home,
+                "end" => KeyCode::End,
+                "page_up" => KeyCode::PageUp,
+                "page_down" => KeyCode::PageDown,
+                "tab" => KeyCode::Tab,
+                "back_tab" => KeyCode::BackTab,
+                "delete" => KeyCode::Delete,
+                "insert" => KeyCode::Insert,
+                "esc" => KeyCode::Esc,
                 char => {
                     if char.len() != 1 {
+                        if char.starts_with('f') {
+                            let mut key = char.to_string();
+                            key.remove(0);
+
+                            return KeyCode::F(key.parse::<u8>().unwrap_or_else(|err| {
+                                panic!("{}: {} is not a valid F key", err, key)
+                            }));
+                        }
                         panic!("{} is not a valid shortcut", char);
                     }
                     KeyCode::Char(char.chars().next().unwrap())
