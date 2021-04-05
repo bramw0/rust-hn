@@ -108,5 +108,7 @@ async fn construct_items(
     #[cfg(debug_assertions)]
     eprintln!("Total time: {:?}", a.elapsed());
 
+    items.sort_by_key(|key| key.0);
+
     Ok(items)
 }
