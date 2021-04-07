@@ -19,18 +19,28 @@ impl TopItems {
 
     pub async fn get_vec(
         &mut self,
-        item_length: u8,
+        item_length: u16,
     ) -> Result<Vec<(usize, Post)>, Box<dyn std::error::Error>> {
         if self.vec.is_empty() {
-            self.vec = Self::get_items(self.client.clone(), item_length).await?;
+            Self::set_vec(self, item_length).await?;
         }
 
         Ok(self.vec.clone())
     }
 
+    pub async fn refresh(&mut self, item_length: u16) -> Result<(), Box<dyn std::error::Error>> {
+        Self::set_vec(self, item_length).await?;
+        Ok(())
+    }
+
+    async fn set_vec(&mut self, item_length: u16) -> Result<(), Box<dyn std::error::Error>> {
+        self.vec = Self::get_items(self.client.clone(), item_length).await?;
+        Ok(())
+    }
+
     async fn get_items(
         client: api::Client,
-        item_length: u8,
+        item_length: u16,
     ) -> Result<Vec<(usize, Post)>, Box<dyn std::error::Error>> {
         let stories = client
             .get_top_stories(&format!("orderBy=\"$key\"&limitToFirst={}", item_length))
@@ -57,19 +67,33 @@ impl NewItems {
         }
     }
 
-    pub async fn get_vec(&mut self) -> Result<Vec<(usize, Post)>, Box<dyn std::error::Error>> {
+    pub async fn get_vec(
+        &mut self,
+        item_length: u16,
+    ) -> Result<Vec<(usize, Post)>, Box<dyn std::error::Error>> {
         if self.vec.is_empty() {
-            self.vec = Self::get_items(self.client.clone()).await?;
+            Self::set_vec(self, item_length).await?;
         }
 
         Ok(self.vec.clone())
     }
 
+    pub async fn refresh(&mut self, item_length: u16) -> Result<(), Box<dyn std::error::Error>> {
+        Self::set_vec(self, item_length).await?;
+        Ok(())
+    }
+
+    async fn set_vec(&mut self, item_length: u16) -> Result<(), Box<dyn std::error::Error>> {
+        self.vec = Self::get_items(self.client.clone(), item_length).await?;
+        Ok(())
+    }
+
     async fn get_items(
         client: api::Client,
+        item_length: u16,
     ) -> Result<Vec<(usize, Post)>, Box<dyn std::error::Error>> {
         let stories = client
-            .get_new_stories("orderBy=\"$key\"&limitToFirst=25")
+            .get_new_stories(&format!("orderBy=\"$key\"&limitToFirst={}", item_length))
             .await?;
 
         let items = construct_items(stories, client).await?;
