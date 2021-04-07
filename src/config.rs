@@ -15,14 +15,15 @@ pub struct Config {
     pub left: HashSet<KeyCode>,
     pub right: HashSet<KeyCode>,
     pub open_article: HashSet<KeyCode>,
-    pub max_items: u8,
+    pub refresh: HashSet<KeyCode>,
+    pub max_items: u16,
     pub default_view: MenuItem,
 }
 
 impl std::default::Default for Config {
     fn default() -> Self {
         let mut view_comments = HashSet::new();
-        view_comments.insert(KeyCode::Char('C'));
+        view_comments.insert(KeyCode::Char('c'));
 
         let mut quit = HashSet::new();
         quit.insert(KeyCode::Char('q'));
@@ -47,18 +48,22 @@ impl std::default::Default for Config {
         let mut open_article = HashSet::new();
         open_article.insert(KeyCode::Enter);
 
+        let mut refresh = HashSet::new();
+        refresh.insert(KeyCode::Char('r'));
+
         Config {
             ini: Ini::new()
                 .section("keybindings")
-                .item_vec("view_comments", &["C"])
+                .item_vec("view_comments", &["c"])
                 .item_vec("quit", &["q", "esc"])
                 .item_vec("down", &["j", "arrow_down"])
                 .item_vec("up", &["k", "arrow_up"])
                 .item_vec("left", &["h", "arrow_left"])
                 .item_vec("right", &["l", "arrow_right"])
                 .item_vec("open_article", &["enter"])
+                .item_vec("refresh", &["r"])
                 .section("general")
-                .item("max_items", 25)
+                .item("max_items", 30)
                 .item("default_view", "top"),
             path: Self::config_path(),
             view_comments,
@@ -68,7 +73,8 @@ impl std::default::Default for Config {
             left,
             right,
             open_article,
-            max_items: 25,
+            refresh,
+            max_items: 30,
             default_view: MenuItem::Top,
         }
     }
@@ -122,6 +128,7 @@ impl Config {
                             "left" => self.left = Self::parse_shortcuts(shortcuts),
                             "right" => self.right = Self::parse_shortcuts(shortcuts),
                             "open_article" => self.open_article = Self::parse_shortcuts(shortcuts),
+                            "refresh" => self.refresh = Self::parse_shortcuts(shortcuts),
                             _ => {}
                         }
                     }
@@ -130,9 +137,15 @@ impl Config {
                     for (key, value) in section_iter {
                         match key.as_str() {
                             "max_items" => {
-                                self.max_items = value.parse::<u8>().unwrap_or_else(|_| {
+                                let max_items = value.parse::<u16>().unwrap_or_else(|_| {
                                     panic!("{} is not a valid max_items value", value)
-                                })
+                                });
+
+                                if max_items > 500 {
+                                    panic!("A max_items value greater than 500 is useless as the API returns a max of 500 posts");
+                                } else {
+                                    self.max_items = max_items;
+                                }
                             }
                             "default_view" => {
                                 self.default_view = match value.to_lowercase().as_str() {
