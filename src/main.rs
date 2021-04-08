@@ -295,12 +295,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         MenuItem::Top => {
             top_items.list =
                 generate_list_items(top_items.get_vec(config.max_items).await?, current_time);
-            StatefulList::new(top_items.list.clone())
+            StatefulList::new(top_items.list.clone(), config.scroll_past_list)
         }
         MenuItem::New => {
             new_items.list =
                 generate_list_items(new_items.get_vec(config.max_items).await?, current_time);
-            StatefulList::new(new_items.list.clone())
+            StatefulList::new(new_items.list.clone(), config.scroll_past_list)
         }
     };
     stateful_list.next();

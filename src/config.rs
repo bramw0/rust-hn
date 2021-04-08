@@ -18,6 +18,7 @@ pub struct Config {
     pub refresh: HashSet<KeyCode>,
     pub max_items: u16,
     pub default_view: MenuItem,
+    pub scroll_past_list: bool,
 }
 
 impl std::default::Default for Config {
@@ -64,7 +65,8 @@ impl std::default::Default for Config {
                 .item_vec("refresh", &["r"])
                 .section("general")
                 .item("max_items", 30)
-                .item("default_view", "top"),
+                .item("default_view", "top")
+                .item("scroll_past_list", "true"),
             path: Self::config_path(),
             view_comments,
             quit,
@@ -76,6 +78,7 @@ impl std::default::Default for Config {
             refresh,
             max_items: 30,
             default_view: MenuItem::Top,
+            scroll_past_list: true,
         }
     }
 }
@@ -159,6 +162,11 @@ impl Config {
                                         MenuItem::Top
                                     }
                                 }
+                            }
+                            "scroll_past_list" => {
+                                self.scroll_past_list = value.parse::<bool>().unwrap_or_else(|_| {
+                                    panic!("{} is not a valid scroll_past_list value", value);
+                                })
                             }
                             _ => {}
                         }

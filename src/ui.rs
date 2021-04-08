@@ -30,26 +30,36 @@ impl<'a> PostItem<'a> {
 pub struct StatefulList<T> {
     pub state: ListState,
     pub items: Vec<T>,
+    scroll_past_list: bool,
 }
 
 impl<T> StatefulList<T>
 where
     T: Clone,
 {
-    pub fn new(items: Vec<T>) -> StatefulList<T> {
+    pub fn new(items: Vec<T>, scroll_past_list: bool) -> StatefulList<T> {
         StatefulList {
             state: ListState::default(),
             items,
+            scroll_past_list,
         }
     }
 
     pub fn next(&mut self) {
         let i = match self.state.selected() {
             Some(i) => {
-                if i >= self.items.len() - 2 {
-                    0
+                if self.scroll_past_list {
+                    if i >= self.items.len() - 1 {
+                        0
+                    } else {
+                        i + 2
+                    }
                 } else {
-                    i + 2
+                    if i >= self.items.len() - 2 {
+                        0
+                    } else {
+                        i + 2
+                    }
                 }
             }
             None => 0,
@@ -62,7 +72,11 @@ where
         let i = match self.state.selected() {
             Some(i) => {
                 if i == 0 {
-                    self.items.len() - 2
+                    if self.scroll_past_list {
+                        self.items.len()
+                    } else {
+                        self.items.len() - 2
+                    }
                 } else {
                     i - 2
                 }
