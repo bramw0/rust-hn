@@ -241,10 +241,14 @@ fn generate_list_items(
                             Spans::from(vec![
                                 Span::styled(format!("{}", pos), Style::default().fg(Color::Red)),
                                 Span::styled(format!(" {}", story.title.clone()), Style::default()),
-                                Span::styled(
-                                    format!(" ({})", url),
-                                    Style::default().add_modifier(Modifier::ITALIC),
-                                ),
+                                if !url.is_empty() {
+                                    Span::styled(
+                                        format!(" ({})", url),
+                                        Style::default().add_modifier(Modifier::ITALIC),
+                                    )
+                                } else {
+                                    Span::raw("")
+                                },
                             ]),
                             Spans::from(vec![Span::styled(
                                 format!(
